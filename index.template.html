@@ -415,14 +415,14 @@ const SUPABASE_KEY = '%%SUPABASE_KEY%%';       // eyJh...
 // ═══════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════
-let supabase = null;
+let supabase_connection = null;
 let logData = {};
 let dirty = false;
 
 async function initSupabase() {
   setLoader(true, 'Kobler til database...');
   try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    supabase_connection = window.supabase_connection.createClient(SUPABASE_URL, SUPABASE_KEY);
     await fetchData();
     document.getElementById('app').style.display = 'block';
     setLoader(false);
@@ -449,7 +449,7 @@ function dayKey(weekN, dayName) {
 }
 
 async function fetchData() {
-  const { data, error } = await supabase
+  const { data, error } = await supabase_connection
     .from('treningslogg')
     .select('*');
   if (error) throw error;
@@ -466,7 +466,7 @@ async function fetchData() {
 }
 
 async function upsertDay(key, fields) {
-  const { error } = await supabase
+  const { error } = await supabase_connection
     .from('treningslogg')
     .upsert({ dag_key: key, ...fields }, { onConflict: 'dag_key' });
   if (error) throw error;
@@ -501,7 +501,7 @@ async function saveAll() {
       });
     }));
 
-    const { error } = await supabase
+    const { error } = await supabase_connection
       .from('treningslogg')
       .upsert(upserts, { onConflict: 'dag_key' });
     if (error) throw error;
