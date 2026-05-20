@@ -57,58 +57,6 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .loading-overlay p { color: var(--muted); font-size: 12px; letter-spacing: 0.08em; }
 
-  /* ── CONFIG SCREEN ── */
-  .config-screen {
-    display: none;
-    max-width: 480px;
-    margin: 60px auto;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 32px;
-  }
-  .config-screen.visible { display: block; }
-  .config-screen h2 {
-    font-family: 'Fraunces', serif;
-    font-size: 22px;
-    font-weight: 700;
-    margin-bottom: 6px;
-  }
-  .config-screen p { color: var(--muted); font-size: 12px; line-height: 1.6; margin-bottom: 20px; }
-  .config-screen a { color: var(--accent); text-decoration: none; }
-  .config-screen a:hover { text-decoration: underline; }
-  .cfg-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-  .cfg-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-  .cfg-input {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    padding: 9px 12px;
-    outline: none;
-    transition: border-color 0.15s;
-    width: 100%;
-  }
-  .cfg-input:focus { border-color: var(--accent); }
-  .cfg-btn {
-    background: var(--accent);
-    border: none; border-radius: 3px;
-    color: var(--bg);
-    cursor: pointer;
-    font-family: 'DM Mono', monospace;
-    font-size: 12px; font-weight: 500;
-    letter-spacing: 0.1em;
-    padding: 11px 20px;
-    text-transform: uppercase;
-    transition: opacity 0.15s;
-    width: 100%;
-    margin-top: 6px;
-  }
-  .cfg-btn:hover { opacity: 0.85; }
-  .cfg-error { color: var(--red); font-size: 11px; margin-top: 8px; display: none; }
-
   /* ── HEADER ── */
   header { margin-bottom: 32px; }
   h1 {
@@ -272,18 +220,6 @@
   }
   .save-btn:hover { opacity: 0.85; }
   .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .settings-btn {
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    color: var(--muted);
-    cursor: pointer;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px; letter-spacing: 0.1em;
-    padding: 9px 14px; text-transform: uppercase;
-    transition: all 0.15s;
-  }
-  .settings-btn:hover { border-color: var(--muted); color: var(--text); }
   .status-msg { font-size: 11px; color: var(--muted); letter-spacing: 0.05em; flex: 1; }
 
   @media (max-width: 500px) {
@@ -297,25 +233,6 @@
 <div class="loading-overlay" id="loader">
   <div class="spinner"></div>
   <p id="loaderMsg">Starter opp...</p>
-</div>
-
-<!-- Config / setup screen -->
-<div class="config-screen" id="configScreen">
-  <h2>Koble til Supabase</h2>
-  <p>
-    Du trenger en gratis Supabase-konto og en tabell. Se <code>OPPSETT.md</code> for steg-for-steg instruksjoner.<br><br>
-    Disse verdiene lagres kun i nettleseren din (localStorage) og brukes til å koble til databasen.
-  </p>
-  <div class="cfg-field">
-    <label class="cfg-label">Supabase URL</label>
-    <input class="cfg-input" id="cfgUrl" type="text" placeholder="https://xxxx.supabase.co">
-  </div>
-  <div class="cfg-field">
-    <label class="cfg-label">Anon Key (public)</label>
-    <input class="cfg-input" id="cfgKey" type="text" placeholder="eyJh...">
-  </div>
-  <button class="cfg-btn" onclick="saveConfig()">Koble til og start</button>
-  <div class="cfg-error" id="cfgError"></div>
 </div>
 
 <!-- Main app -->
@@ -361,7 +278,6 @@
 
   <div class="save-bar">
     <span class="status-msg" id="statusMsg">—</span>
-    <button class="settings-btn" onclick="showConfig()">⚙ DB</button>
     <button class="save-btn" id="saveBtn" onclick="saveAll()">Lagre</button>
   </div>
 </div>
@@ -491,69 +407,28 @@ const TYPE_COLOR = { rest:'var(--rest)', easy:'var(--easy)', hard:'var(--hard)',
 const TYPE_LABEL = { rest:'Hvile', easy:'Rolig', hard:'Hardøkt', test:'Test' };
 
 // ═══════════════════════════════════════
+// SUPABASE-KONFIG — fyll inn dine verdier
+// ═══════════════════════════════════════
+const SUPABASE_URL = 'DIN_SUPABASE_URL';   // f.eks. https://xxxx.supabase.co
+const SUPABASE_KEY = 'DIN_ANON_KEY';       // eyJh...
+
+// ═══════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════
 let supabase = null;
-let logData = {};  // { "w1_Tirsdag": { time, pace, note, done } }
+let logData = {};
 let dirty = false;
 
-// ═══════════════════════════════════════
-// CONFIG / SUPABASE INIT
-// ═══════════════════════════════════════
-function loadConfig() {
-  return {
-    url: localStorage.getItem('sb_url') || '',
-    key: localStorage.getItem('sb_key') || '',
-  };
-}
-
-function saveConfig() {
-  const url = document.getElementById('cfgUrl').value.trim();
-  const key = document.getElementById('cfgKey').value.trim();
-  const errEl = document.getElementById('cfgError');
-  errEl.style.display = 'none';
-
-  if (!url || !key) {
-    errEl.textContent = 'Begge felt må fylles ut.';
-    errEl.style.display = 'block';
-    return;
-  }
-
-  localStorage.setItem('sb_url', url);
-  localStorage.setItem('sb_key', key);
-  document.getElementById('configScreen').classList.remove('visible');
-  initSupabase(url, key);
-}
-
-function showConfig() {
-  const cfg = loadConfig();
-  document.getElementById('cfgUrl').value = cfg.url;
-  document.getElementById('cfgKey').value = cfg.key;
-  document.getElementById('configScreen').classList.add('visible');
-  document.getElementById('app').style.display = 'none';
-}
-
-async function initSupabase(url, key) {
+async function initSupabase() {
   setLoader(true, 'Kobler til database...');
   try {
-    supabase = window.supabase.createClient(url, key);
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     await fetchData();
     document.getElementById('app').style.display = 'block';
     setLoader(false);
   } catch(e) {
-    setLoader(false);
-    showConfigWithError('Kunne ikke koble til: ' + e.message);
+    document.getElementById('loaderMsg').textContent = 'Feil: ' + e.message;
   }
-}
-
-function showConfigWithError(msg) {
-  const cfg = loadConfig();
-  document.getElementById('cfgUrl').value = cfg.url;
-  document.getElementById('cfgKey').value = cfg.key;
-  const errEl = document.getElementById('cfgError');
-  errEl.textContent = msg;
-  errEl.style.display = 'block';
-  document.getElementById('configScreen').classList.add('visible');
 }
 
 function setLoader(show, msg) {
@@ -795,15 +670,7 @@ function render() {
 // ═══════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════
-(function boot() {
-  const cfg = loadConfig();
-  if (cfg.url && cfg.key) {
-    initSupabase(cfg.url, cfg.key);
-  } else {
-    setLoader(false);
-    document.getElementById('configScreen').classList.add('visible');
-  }
-})();
+initSupabase();
 </script>
 </body>
 </html>
