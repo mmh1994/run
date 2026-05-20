@@ -1,0 +1,41 @@
+name: Deploy treningslogg
+
+on:
+  push:
+    branches: [main]
+
+# Gir workflow lov til å skrive til GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: Hent kode
+        uses: actions/checkout@v4
+
+      - name: Sett inn hemmeligheter
+        run: |
+          sed \
+            -e 's|%%SUPABASE_URL%%|${{ secrets.SUPABASE_URL }}|g' \
+            -e 's|%%SUPABASE_KEY%%|${{ secrets.SUPABASE_KEY }}|g' \
+            index.template.html > index.html
+
+      - name: Klargjør Pages
+        uses: actions/configure-pages@v4
+
+      - name: Last opp artefakt
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy til GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
